@@ -13,7 +13,11 @@ const QuestionList = std.ArrayList(Question);
 const ResourceRecordList = std.ArrayList(ResourceRecord);
 
 /// Creates a DNS query message with common defaults.
-pub fn createQuery(allocator: mem.Allocator, address: []const u8, qtype: QType) !Message {
+pub fn createQuery(
+    allocator: mem.Allocator,
+    address: []const u8,
+    qtype: QType,
+) !Message {
     const header = Header{
         .id = 1,
         .response = false,
@@ -46,7 +50,7 @@ pub fn createQuery(allocator: mem.Allocator, address: []const u8, qtype: QType) 
         .questions = questions,
         .answers = &.{},
         .authorities = &.{},
-        .additional = &.{}
+        .additional = &.{},
     };
 
     return message;
@@ -128,10 +132,10 @@ pub const Message = struct {
         return Message{
             .allocator = allocator,
             .header = header,
-            .questions = questions.toOwnedSlice(),
-            .answers = answers.toOwnedSlice(),
-            .authorities = authorities.toOwnedSlice(),
-            .additional = additional.toOwnedSlice(),
+            .questions = try questions.toOwnedSlice(),
+            .answers = try answers.toOwnedSlice(),
+            .authorities = try authorities.toOwnedSlice(),
+            .additional = try additional.toOwnedSlice(),
         };
     }
 
@@ -149,7 +153,7 @@ pub const Message = struct {
         var bytes = std.ArrayList(u8).init(allocator);
         var writer = bytes.writer();
         try self.to_writer(writer);
-        return bytes.toOwnedSlice();
+        return try bytes.toOwnedSlice();
     }
 
     pub fn deinit(self: *const Message) void {
@@ -171,29 +175,34 @@ pub const Message = struct {
         self.allocator.free(self.additional);
     }
 
-    pub fn format(self: *const Message, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) @TypeOf(writer).Error!void {
+    pub fn format(
+        self: *const Message,
+        comptime fmt: []const u8,
+        options: std.fmt.FormatOptions,
+        writer: anytype,
+    ) @TypeOf(writer).Error!void {
         _ = fmt;
         _ = options;
         try writer.print("Message {{\n", .{});
-        try writer.print("{any}", .{ self.header });
+        try writer.print("{any}", .{self.header});
         try writer.print("  Questions {{\n", .{});
         for (self.questions) |question| {
-            try writer.print("{any}", .{ question });
+            try writer.print("{any}", .{question});
         }
         try writer.print("  }}\n", .{});
         try writer.print("  Ansewrs {{\n", .{});
         for (self.answers) |answer| {
-            try writer.print("{any}", .{ answer });
+            try writer.print("{any}", .{answer});
         }
         try writer.print("  }}\n", .{});
         try writer.print("  Authorities {{\n", .{});
         for (self.authorities) |authority| {
-            try writer.print("{any}", .{ authority });
+            try writer.print("{any}", .{authority});
         }
         try writer.print("  }}\n", .{});
         try writer.print("  Additional {{\n", .{});
         for (self.additional) |addition| {
-            try writer.print("{any}", .{ addition });
+            try writer.print("{any}", .{addition});
         }
         try writer.print("  }}\n", .{});
         try writer.print("}}\n", .{});
@@ -201,7 +210,11 @@ pub const Message = struct {
 
     /// Creates a deep copy of the original message, with all message
     /// pointers resolved
-    pub fn decompress(self: *const Message, allocator: mem.Allocator, packet: []const u8) !Message {
+    pub fn decompress(
+        self: *const Message,
+        allocator: mem.Allocator,
+        packet: []const u8,
+    ) !Message {
         var questions = QuestionList.init(allocator);
         errdefer listDeinit(questions);
         var answers = ResourceRecordList.init(allocator);
@@ -238,10 +251,10 @@ pub const Message = struct {
         const message = Message{
             .allocator = self.allocator,
             .header = self.header,
-            .questions = questions.toOwnedSlice(),
-            .answers = answers.toOwnedSlice(),
-            .authorities = authorities.toOwnedSlice(),
-            .additional = additional.toOwnedSlice(),
+            .questions = try questions.toOwnedSlice(),
+            .answers = try answers.toOwnedSlice(),
+            .authorities = try authorities.toOwnedSlice(),
+            .additional = try additional.toOwnedSlice(),
         };
 
         return message;
@@ -249,7 +262,7 @@ pub const Message = struct {
 };
 
 /// DNS message header. Contains information about the message.
-pub const Header = packed struct (u96) {
+pub const Header = packed struct(u96) {
     /// An identifier assigned by the program that generates any kind
     /// of query. This identifier is copied the corresponding reply
     /// and can be used by the requester to match up replies to
@@ -362,19 +375,24 @@ pub const Header = packed struct (u96) {
         try writer.writeAll(header);
     }
 
-    pub fn format(self: *const Header, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) @TypeOf(writer).Error!void {
+    pub fn format(
+        self: *const Header,
+        comptime fmt: []const u8,
+        options: std.fmt.FormatOptions,
+        writer: anytype,
+    ) @TypeOf(writer).Error!void {
         _ = fmt;
         _ = options;
         try writer.print("  Header {{\n", .{});
-        try writer.print("    ID: {d}\n", .{ self.id });
-        try writer.print("    Response: {}\n", .{ self.response });
-        try writer.print("    OpCode: {s}\n", .{ @tagName(self.opcode) });
-        try writer.print("    Authoritative Answer: {}\n", .{ self.authoritative_answer });
-        try writer.print("    Truncation: {}\n", .{ self.truncation });
-        try writer.print("    Recursion Desired: {}\n", .{ self.recursion_desired });
-        try writer.print("    Recursion Available: {}\n", .{ self.recursion_available });
-        try writer.print("    Z: {d}\n", .{ self.z });
-        try writer.print("    Response Code: {s}\n", .{ @tagName(self.response_code) });
+        try writer.print("    ID: {d}\n", .{self.id});
+        try writer.print("    Response: {}\n", .{self.response});
+        try writer.print("    OpCode: {s}\n", .{@tagName(self.opcode)});
+        try writer.print("    Authoritative Answer: {}\n", .{self.authoritative_answer});
+        try writer.print("    Truncation: {}\n", .{self.truncation});
+        try writer.print("    Recursion Desired: {}\n", .{self.recursion_desired});
+        try writer.print("    Recursion Available: {}\n", .{self.recursion_available});
+        try writer.print("    Z: {d}\n", .{self.z});
+        try writer.print("    Response Code: {s}\n", .{@tagName(self.response_code)});
         try writer.print("  }}\n", .{});
     }
 };
@@ -421,7 +439,7 @@ pub const Question = struct {
         var qtype = try reader.readIntBig(u16);
         var qclass = try reader.readIntBig(u16);
 
-        return  Question{
+        return Question{
             .qname = qname,
             .qtype = @intToEnum(QType, qtype),
             .qclass = @intToEnum(QClass, qclass),
@@ -432,18 +450,27 @@ pub const Question = struct {
         self.qname.deinit();
     }
 
-    pub fn format(self: *const Question, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) @TypeOf(writer).Error!void {
+    pub fn format(
+        self: *const Question,
+        comptime fmt: []const u8,
+        options: std.fmt.FormatOptions,
+        writer: anytype,
+    ) @TypeOf(writer).Error!void {
         _ = fmt;
         _ = options;
 
         try writer.print("    Question {{\n", .{});
-        try writer.print("      Name: {}\n", .{ self.qname });
-        try writer.print("      QType: {s}\n", .{ @tagName(self.qtype) });
-        try writer.print("      QClass: {s}\n", .{ @tagName(self.qclass) });
+        try writer.print("      Name: {}\n", .{self.qname});
+        try writer.print("      QType: {s}\n", .{@tagName(self.qtype)});
+        try writer.print("      QClass: {s}\n", .{@tagName(self.qclass)});
         try writer.print("    }}\n", .{});
     }
 
-    pub fn decompress(self: *const Question, allocator: mem.Allocator, packet: []const u8) !Question {
+    pub fn decompress(
+        self: *const Question,
+        allocator: mem.Allocator,
+        packet: []const u8,
+    ) !Question {
         return Question{
             .qname = try self.qname.decompress(allocator, packet),
             .qtype = self.qtype,
@@ -456,7 +483,7 @@ pub const Question = struct {
 /// message.
 pub const ResourceRecord = struct {
     name: DomainName,
-    @"type": Type,
+    type: Type,
     class: Class,
     ttl: i32,
     resource_data_length: u16,
@@ -469,7 +496,7 @@ pub const ResourceRecord = struct {
         try self.resource_data.to_writer(resource_data_stream.writer());
 
         try self.name.to_writer(writer);
-        try writer.writeIntBig(u16, @enumToInt(self.@"type"));
+        try writer.writeIntBig(u16, @enumToInt(self.type));
         try writer.writeIntBig(u16, @enumToInt(self.class));
         try writer.writeIntBig(i32, self.ttl);
         try writer.writeIntBig(u16, @intCast(u16, try resource_data_stream.getPos()));
@@ -484,14 +511,19 @@ pub const ResourceRecord = struct {
         const ttl = try reader.readIntBig(i32);
         const resource_data_length = try reader.readIntBig(u16);
         var counting_reader = io.countingReader(reader);
-        const resource_data = try ResourceData.from_reader(allocator, counting_reader.reader(), resource_type, resource_data_length);
+        const resource_data = try ResourceData.from_reader(
+            allocator,
+            counting_reader.reader(),
+            resource_type,
+            resource_data_length,
+        );
         if (counting_reader.bytes_read != resource_data_length) {
             return error.ResourceDataSizeMismatch;
         }
 
         return .{
             .name = name,
-            .@"type" = resource_type,
+            .type = resource_type,
             .class = class,
             .ttl = ttl,
             .resource_data_length = resource_data_length,
@@ -504,25 +536,34 @@ pub const ResourceRecord = struct {
         self.resource_data.deinit();
     }
 
-    pub fn format(self: *const ResourceRecord, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) @TypeOf(writer).Error!void {
+    pub fn format(
+        self: *const ResourceRecord,
+        comptime fmt: []const u8,
+        options: std.fmt.FormatOptions,
+        writer: anytype,
+    ) @TypeOf(writer).Error!void {
         _ = fmt;
         _ = options;
 
         try writer.print("    Resource Record {{\n", .{});
-        try writer.print("      Name: {}\n", .{ self.name });
-        try writer.print("      Type: {}\n", .{ self.@"type" });
-        try writer.print("      Class: {}\n", .{ self.class });
-        try writer.print("      TTL: {d}\n", .{ self.ttl });
-        try writer.print("      Resource Data Length: {d}\n", .{ self.resource_data_length });
-        try writer.print("      Resource Data: {}\n", .{ self.resource_data });
+        try writer.print("      Name: {}\n", .{self.name});
+        try writer.print("      Type: {}\n", .{self.type});
+        try writer.print("      Class: {}\n", .{self.class});
+        try writer.print("      TTL: {d}\n", .{self.ttl});
+        try writer.print("      Resource Data Length: {d}\n", .{self.resource_data_length});
+        try writer.print("      Resource Data: {}\n", .{self.resource_data});
         try writer.print("    }}\n", .{});
     }
 
-    pub fn decompress(self: *const ResourceRecord, allocator: mem.Allocator, packet: []const u8) !ResourceRecord {
+    pub fn decompress(
+        self: *const ResourceRecord,
+        allocator: mem.Allocator,
+        packet: []const u8,
+    ) !ResourceRecord {
         const new_record = try self.resource_data.decompress(allocator, packet);
         return ResourceRecord{
             .name = try self.name.decompress(allocator, packet),
-            .@"type" = self.@"type",
+            .type = self.type,
             .class = self.class,
             .ttl = self.ttl,
             // XXX Should update?
@@ -533,7 +574,7 @@ pub const ResourceRecord = struct {
 };
 
 /// DNS Resource Record types
-pub const Type = enum (u16) {
+pub const Type = enum(u16) {
     /// A host address
     A = 1,
     /// An authoritative name server
@@ -581,7 +622,12 @@ pub const Type = enum (u16) {
 
     _,
 
-    pub fn format(self: Type, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) @TypeOf(writer).Error!void {
+    pub fn format(
+        self: Type,
+        comptime fmt: []const u8,
+        options: std.fmt.FormatOptions,
+        writer: anytype,
+    ) @TypeOf(writer).Error!void {
         _ = fmt;
         _ = options;
         try formatTagName(self, writer);
@@ -589,7 +635,7 @@ pub const Type = enum (u16) {
 };
 
 /// Types exclusive to QType.
-pub const QTypeOnly = enum (u16) {
+pub const QTypeOnly = enum(u16) {
     /// A request for a transfer of an entire zone
     AXFR = 252,
     /// A request for mailbox-related records (MB, MG or MR)
@@ -609,7 +655,7 @@ pub const QType = blk: {
 };
 
 /// DNS Resource Record Classes
-pub const Class = enum (u16) {
+pub const Class = enum(u16) {
     /// The Internet
     IN = 1,
     /// The CSNET class (Obsolete - used only for examples in some obsolete RFCs)
@@ -619,7 +665,12 @@ pub const Class = enum (u16) {
     /// Hesiod [Dyer 87]
     HS = 4,
 
-    pub fn format(self: Class, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) @TypeOf(writer).Error!void {
+    pub fn format(
+        self: Class,
+        comptime fmt: []const u8,
+        options: std.fmt.FormatOptions,
+        writer: anytype,
+    ) @TypeOf(writer).Error!void {
         _ = fmt;
         _ = options;
         try formatTagName(self, writer);
@@ -627,7 +678,7 @@ pub const Class = enum (u16) {
 };
 
 /// Classes exclusive to QClass.
-pub const QClassOnly = enum (u16) {
+pub const QClassOnly = enum(u16) {
     /// Any Class
     @"*" = 255,
 };
@@ -683,7 +734,10 @@ pub const DomainName = struct {
                     const header = @bitCast(Label.TextHeader, header_byte);
                     const pointer_end = try reader.readByte();
                     // XXX Different on big-endian systems?
-                    const components = Label.PointerComponents{ .upper = header.length, .lower = pointer_end };
+                    const components = Label.PointerComponents{
+                        .upper = header.length,
+                        .lower = pointer_end,
+                    };
                     const pointer = @bitCast(Label.Pointer, components);
                     const label = Label{
                         .compressed = pointer,
@@ -706,7 +760,7 @@ pub const DomainName = struct {
 
         return DomainName{
             .allocator = allocator,
-            .labels = labels.toOwnedSlice(),
+            .labels = try labels.toOwnedSlice(),
         };
     }
 
@@ -717,10 +771,7 @@ pub const DomainName = struct {
                     if (text.len > std.math.maxInt(Label.Length)) {
                         return error.LabelTooLong;
                     }
-                    const header = Label.TextHeader{
-                        .length = @intCast(u6, text.len),
-                        .options = .text
-                    };
+                    const header = Label.TextHeader{ .length = @intCast(u6, text.len), .options = .text };
                     const header_byte = @bitCast(u8, header);
                     try writer.writeByte(header_byte);
                     try writer.writeAll(text);
@@ -771,7 +822,7 @@ pub const DomainName = struct {
         try labels.append(label);
         return DomainName{
             .allocator = allocator,
-            .labels = labels.toOwnedSlice(),
+            .labels = try labels.toOwnedSlice(),
         };
     }
 
@@ -790,14 +841,19 @@ pub const DomainName = struct {
                 },
                 .compressed => |pointer| {
                     var writer = string.writer();
-                    try writer.print("Pointer<{d}>", .{ pointer });
+                    try writer.print("Pointer<{d}>", .{pointer});
                 },
             }
         }
-        return string.toOwnedSlice();
+        return try string.toOwnedSlice();
     }
 
-    pub fn format(self: *const DomainName, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) @TypeOf(writer).Error!void {
+    pub fn format(
+        self: *const DomainName,
+        comptime fmt: []const u8,
+        options: std.fmt.FormatOptions,
+        writer: anytype,
+    ) @TypeOf(writer).Error!void {
         _ = fmt;
         _ = options;
 
@@ -807,14 +863,13 @@ pub const DomainName = struct {
                     if (text.len == 0) {
                         continue;
                     }
-                    try writer.print("{s}.", .{ text });
+                    try writer.print("{s}.", .{text});
                 },
                 .compressed => |pointer| {
-                    try writer.print("Pointer<{d}>", .{ pointer });
+                    try writer.print("Pointer<{d}>", .{pointer});
                 },
             }
         }
-
     }
 
     pub fn deinit(self: *const DomainName) void {
@@ -828,7 +883,11 @@ pub const DomainName = struct {
     }
 
     /// Returns a completely newly allocated DomainName
-    pub fn decompress(self: *const DomainName, allocator: mem.Allocator, packet: []const u8) !DomainName {
+    pub fn decompress(
+        self: *const DomainName,
+        allocator: mem.Allocator,
+        packet: []const u8,
+    ) !DomainName {
         var labels = LabelList.init(allocator);
 
         errdefer {
@@ -837,7 +896,6 @@ pub const DomainName = struct {
                     .text => |text| allocator.free(text),
                     .compressed => {},
                 }
-
             }
             labels.deinit();
         }
@@ -888,7 +946,7 @@ pub const DomainName = struct {
 
         return DomainName{
             .allocator = allocator,
-            .labels = labels.toOwnedSlice(),
+            .labels = try labels.toOwnedSlice(),
         };
     }
 
@@ -898,10 +956,10 @@ pub const DomainName = struct {
     pub const Label = union(enum) {
         text: []const u8,
         compressed: Pointer,
-            // Little bit endian packed struct
-            pub const TextHeader = packed struct {
-                length: Length,
-                options: Options,
+        // Little bit endian packed struct
+        pub const TextHeader = packed struct {
+            length: Length,
+            options: Options,
         };
 
         pub const Options = enum(u2) {
@@ -951,7 +1009,7 @@ pub const ResourceData = union(enum) {
     minfo: MINFO,
     mr: MR,
     mx: MX,
-    @"null": NULL,
+    null: NULL,
     ns: NS,
     ptr: PTR,
     soa: SOA,
@@ -972,30 +1030,35 @@ pub const ResourceData = union(enum) {
         }
     }
 
-    pub fn from_reader(allocator: mem.Allocator, reader: anytype, resource_type: Type, size: u16) !ResourceData {
+    pub fn from_reader(
+        allocator: mem.Allocator,
+        reader: anytype,
+        resource_type: Type,
+        size: u16,
+    ) !ResourceData {
         return switch (resource_type) {
-            .CNAME => ResourceData{ .cname   = try   CNAME.from_reader(allocator, reader, size) },
-            .HINFO => ResourceData{ .hinfo   = try   HINFO.from_reader(allocator, reader, size) },
-            .MB    => ResourceData{ .mb      = try      MB.from_reader(allocator, reader, size) },
-            .MD    => ResourceData{ .md      = try      MD.from_reader(allocator, reader, size) },
-            .MF    => ResourceData{ .mf      = try      MF.from_reader(allocator, reader, size) },
-            .MG    => ResourceData{ .mg      = try      MG.from_reader(allocator, reader, size) },
-            .MINFO => ResourceData{ .minfo   = try   MINFO.from_reader(allocator, reader, size) },
-            .MR    => ResourceData{ .mr      = try      MR.from_reader(allocator, reader, size) },
-            .MX    => ResourceData{ .mx      = try      MX.from_reader(allocator, reader, size) },
-            .NULL  => ResourceData{ .@"null" = try    NULL.from_reader(allocator, reader, size) },
-            .NS    => ResourceData{ .ns      = try      NS.from_reader(allocator, reader, size) },
-            .PTR   => ResourceData{ .ptr     = try     PTR.from_reader(allocator, reader, size) },
-            .SOA   => ResourceData{ .soa     = try     SOA.from_reader(allocator, reader, size) },
-            .TXT   => ResourceData{ .txt     = try     TXT.from_reader(allocator, reader, size) },
-            .A     => ResourceData{ .a       = try       A.from_reader(allocator, reader, size) },
-            .WKS   => ResourceData{ .wks     = try     WKS.from_reader(allocator, reader, size) },
-            .RP    => ResourceData{ .rp      = try      RP.from_reader(allocator, reader, size) },
-            .AAAA  => ResourceData{ .aaaa    = try    AAAA.from_reader(allocator, reader, size) },
-            .LOC   => ResourceData{ .loc     = try     LOC.from_reader(allocator, reader, size) },
-            .SRV   => ResourceData{ .srv     = try     SRV.from_reader(allocator, reader, size) },
-            .SSHFP => ResourceData{ .sshfp   = try   SSHFP.from_reader(allocator, reader, size) },
-            else   => ResourceData{ .unknown = try Unknown.from_reader(allocator, reader, size) },
+            .CNAME => ResourceData{ .cname = try CNAME.from_reader(allocator, reader, size) },
+            .HINFO => ResourceData{ .hinfo = try HINFO.from_reader(allocator, reader, size) },
+            .MB => ResourceData{ .mb = try MB.from_reader(allocator, reader, size) },
+            .MD => ResourceData{ .md = try MD.from_reader(allocator, reader, size) },
+            .MF => ResourceData{ .mf = try MF.from_reader(allocator, reader, size) },
+            .MG => ResourceData{ .mg = try MG.from_reader(allocator, reader, size) },
+            .MINFO => ResourceData{ .minfo = try MINFO.from_reader(allocator, reader, size) },
+            .MR => ResourceData{ .mr = try MR.from_reader(allocator, reader, size) },
+            .MX => ResourceData{ .mx = try MX.from_reader(allocator, reader, size) },
+            .NULL => ResourceData{ .null = try NULL.from_reader(allocator, reader, size) },
+            .NS => ResourceData{ .ns = try NS.from_reader(allocator, reader, size) },
+            .PTR => ResourceData{ .ptr = try PTR.from_reader(allocator, reader, size) },
+            .SOA => ResourceData{ .soa = try SOA.from_reader(allocator, reader, size) },
+            .TXT => ResourceData{ .txt = try TXT.from_reader(allocator, reader, size) },
+            .A => ResourceData{ .a = try A.from_reader(allocator, reader, size) },
+            .WKS => ResourceData{ .wks = try WKS.from_reader(allocator, reader, size) },
+            .RP => ResourceData{ .rp = try RP.from_reader(allocator, reader, size) },
+            .AAAA => ResourceData{ .aaaa = try AAAA.from_reader(allocator, reader, size) },
+            .LOC => ResourceData{ .loc = try LOC.from_reader(allocator, reader, size) },
+            .SRV => ResourceData{ .srv = try SRV.from_reader(allocator, reader, size) },
+            .SSHFP => ResourceData{ .sshfp = try SSHFP.from_reader(allocator, reader, size) },
+            else => ResourceData{ .unknown = try Unknown.from_reader(allocator, reader, size) },
         };
     }
 
@@ -1011,14 +1074,18 @@ pub const ResourceData = union(enum) {
         }
     }
 
-    pub fn format(self: *const ResourceData, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) @TypeOf(writer).Error!void {
+    pub fn format(
+        self: *const ResourceData,
+        comptime fmt: []const u8,
+        options: std.fmt.FormatOptions,
+        writer: anytype,
+    ) @TypeOf(writer).Error!void {
         _ = fmt;
         _ = options;
         switch (self.*) {
-            inline else => |resource| try writer.print("{}", .{ resource }),
+            inline else => |resource| try writer.print("{}", .{resource}),
         }
     }
-
 
     pub const CNAME = struct {
         /// A domain name which specifies the canonical or primary name
@@ -1039,11 +1106,16 @@ pub const ResourceData = union(enum) {
             self.cname.deinit();
         }
 
-        pub fn format(self: *const CNAME, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+        pub fn format(
+            self: *const CNAME,
+            comptime fmt: []const u8,
+            options: std.fmt.FormatOptions,
+            writer: anytype,
+        ) !void {
             _ = fmt;
             _ = options;
 
-            try writer.print("{}", .{ self.cname });
+            try writer.print("{}", .{self.cname});
         }
 
         pub fn decompress(self: CNAME, allocator: mem.Allocator, packet: []const u8) !CNAME {
@@ -1058,7 +1130,7 @@ pub const ResourceData = union(enum) {
         /// A string which specifies the CPU type.
         cpu: []const u8,
         /// A string which specifies the operating system type.
-        os:  []const u8,
+        os: []const u8,
 
         pub fn to_writer(self: *const HINFO, writer: anytype) !void {
             if (self.cpu.len > 255) {
@@ -1099,7 +1171,12 @@ pub const ResourceData = union(enum) {
             self.allocator.free(self.os);
         }
 
-        pub fn format(self: *const HINFO, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+        pub fn format(
+            self: *const HINFO,
+            comptime fmt: []const u8,
+            options: std.fmt.FormatOptions,
+            writer: anytype,
+        ) !void {
             _ = fmt;
             _ = options;
 
@@ -1137,11 +1214,16 @@ pub const ResourceData = union(enum) {
             self.madname.deinit();
         }
 
-        pub fn format(self: *const MB, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+        pub fn format(
+            self: *const MB,
+            comptime fmt: []const u8,
+            options: std.fmt.FormatOptions,
+            writer: anytype,
+        ) !void {
             _ = fmt;
             _ = options;
 
-            try writer.print("{}", .{ self.madname });
+            try writer.print("{}", .{self.madname});
         }
 
         pub fn decompress(self: MB, allocator: mem.Allocator, packet: []const u8) !MB {
@@ -1171,11 +1253,16 @@ pub const ResourceData = union(enum) {
             self.madname.deinit();
         }
 
-        pub fn format(self: *const MD, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+        pub fn format(
+            self: *const MD,
+            comptime fmt: []const u8,
+            options: std.fmt.FormatOptions,
+            writer: anytype,
+        ) !void {
             _ = fmt;
             _ = options;
 
-            try writer.print("{}", .{ self.madname });
+            try writer.print("{}", .{self.madname});
         }
 
         pub fn decompress(self: MD, allocator: mem.Allocator, packet: []const u8) !MD {
@@ -1205,11 +1292,16 @@ pub const ResourceData = union(enum) {
             self.madname.deinit();
         }
 
-        pub fn format(self: *const MF, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+        pub fn format(
+            self: *const MF,
+            comptime fmt: []const u8,
+            options: std.fmt.FormatOptions,
+            writer: anytype,
+        ) !void {
             _ = fmt;
             _ = options;
 
-            try writer.print("{}", .{ self.madname });
+            try writer.print("{}", .{self.madname});
         }
 
         pub fn decompress(self: MF, allocator: mem.Allocator, packet: []const u8) !MF {
@@ -1238,11 +1330,16 @@ pub const ResourceData = union(enum) {
             self.madname.deinit();
         }
 
-        pub fn format(self: *const MG, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+        pub fn format(
+            self: *const MG,
+            comptime fmt: []const u8,
+            options: std.fmt.FormatOptions,
+            writer: anytype,
+        ) !void {
             _ = fmt;
             _ = options;
 
-            try writer.print("{}", .{ self.madname });
+            try writer.print("{}", .{self.madname});
         }
 
         pub fn decompress(self: MG, allocator: mem.Allocator, packet: []const u8) !MG {
@@ -1285,7 +1382,12 @@ pub const ResourceData = union(enum) {
             self.emailbx.deinit();
         }
 
-        pub fn format(self: *const MINFO, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+        pub fn format(
+            self: *const MINFO,
+            comptime fmt: []const u8,
+            options: std.fmt.FormatOptions,
+            writer: anytype,
+        ) !void {
             _ = fmt;
             _ = options;
 
@@ -1322,11 +1424,16 @@ pub const ResourceData = union(enum) {
             self.madname.deinit();
         }
 
-        pub fn format(self: *const MR, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+        pub fn format(
+            self: *const MR,
+            comptime fmt: []const u8,
+            options: std.fmt.FormatOptions,
+            writer: anytype,
+        ) !void {
             _ = fmt;
             _ = options;
 
-            try writer.print("{}", .{ self.madname });
+            try writer.print("{}", .{self.madname});
         }
 
         pub fn decompress(self: MR, allocator: mem.Allocator, packet: []const u8) !MR {
@@ -1360,7 +1467,12 @@ pub const ResourceData = union(enum) {
             self.exchange.deinit();
         }
 
-        pub fn format(self: *const MX, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+        pub fn format(
+            self: *const MX,
+            comptime fmt: []const u8,
+            options: std.fmt.FormatOptions,
+            writer: anytype,
+        ) !void {
             _ = fmt;
             _ = options;
 
@@ -1400,11 +1512,16 @@ pub const ResourceData = union(enum) {
             self.allocator.free(self.data);
         }
 
-        pub fn format(self: *const NULL, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+        pub fn format(
+            self: *const NULL,
+            comptime fmt: []const u8,
+            options: std.fmt.FormatOptions,
+            writer: anytype,
+        ) !void {
             _ = fmt;
             _ = options;
 
-            try writer.print("{s}", .{ std.fmt.fmtSliceHexUpper(self.data) });
+            try writer.print("{s}", .{std.fmt.fmtSliceHexUpper(self.data)});
         }
 
         pub fn decompress(self: NULL, allocator: mem.Allocator, _: []const u8) !NULL {
@@ -1434,11 +1551,16 @@ pub const ResourceData = union(enum) {
             self.nsdname.deinit();
         }
 
-        pub fn format(self: *const NS, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+        pub fn format(
+            self: *const NS,
+            comptime fmt: []const u8,
+            options: std.fmt.FormatOptions,
+            writer: anytype,
+        ) !void {
             _ = fmt;
             _ = options;
 
-            try writer.print("{}", .{ self.nsdname });
+            try writer.print("{}", .{self.nsdname});
         }
 
         pub fn decompress(self: NS, allocator: mem.Allocator, packet: []const u8) !NS {
@@ -1467,11 +1589,16 @@ pub const ResourceData = union(enum) {
             self.ptrdname.deinit();
         }
 
-        pub fn format(self: *const PTR, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+        pub fn format(
+            self: *const PTR,
+            comptime fmt: []const u8,
+            options: std.fmt.FormatOptions,
+            writer: anytype,
+        ) !void {
             _ = fmt;
             _ = options;
 
-            try writer.print("{}", .{ self.ptrdname });
+            try writer.print("{}", .{self.ptrdname});
         }
 
         pub fn decompress(self: PTR, allocator: mem.Allocator, packet: []const u8) !PTR {
@@ -1531,7 +1658,12 @@ pub const ResourceData = union(enum) {
             self.rname.deinit();
         }
 
-        pub fn format(self: *const SOA, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+        pub fn format(
+            self: *const SOA,
+            comptime fmt: []const u8,
+            options: std.fmt.FormatOptions,
+            writer: anytype,
+        ) !void {
             _ = fmt;
             _ = options;
 
@@ -1545,7 +1677,15 @@ pub const ResourceData = union(enum) {
                 \\        Expire: {d}
                 \\        Minumum: {d}
                 \\      }}
-                , .{ self.mname, self.rname, self.serial, self.refresh, self.retry, self.expire, self.minimum });
+            , .{
+                self.mname,
+                self.rname,
+                self.serial,
+                self.refresh,
+                self.retry,
+                self.expire,
+                self.minimum,
+            });
         }
 
         pub fn decompress(self: SOA, allocator: mem.Allocator, packet: []const u8) !SOA {
@@ -1561,7 +1701,6 @@ pub const ResourceData = union(enum) {
                 .minimum = self.minimum,
             };
         }
-
     };
 
     pub const TXT = struct {
@@ -1602,7 +1741,7 @@ pub const ResourceData = union(enum) {
             }
             return .{
                 .allocator = allocator,
-                .txt_data = txt_data.toOwnedSlice(),
+                .txt_data = try txt_data.toOwnedSlice(),
             };
         }
 
@@ -1613,11 +1752,16 @@ pub const ResourceData = union(enum) {
             self.allocator.free(self.txt_data);
         }
 
-        pub fn format(self: *const TXT, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) @TypeOf(writer).Error!void {
+        pub fn format(
+            self: *const TXT,
+            comptime fmt: []const u8,
+            options: std.fmt.FormatOptions,
+            writer: anytype,
+        ) @TypeOf(writer).Error!void {
             _ = fmt;
             _ = options;
             for (self.txt_data) |txt| {
-                try writer.print("\"{s}\"", .{ txt });
+                try writer.print("\"{s}\"", .{txt});
             }
         }
 
@@ -1636,7 +1780,7 @@ pub const ResourceData = union(enum) {
             }
             return .{
                 .allocator = allocator,
-                .txt_data = str_list.toOwnedSlice(),
+                .txt_data = try str_list.toOwnedSlice(),
             };
         }
     };
@@ -1662,16 +1806,25 @@ pub const ResourceData = union(enum) {
 
         pub fn deinit(_: *const A) void {}
 
-        pub fn format(self: *const A, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) @TypeOf(writer).Error!void {
+        pub fn format(
+            self: *const A,
+            comptime fmt: []const u8,
+            options: std.fmt.FormatOptions,
+            writer: anytype,
+        ) @TypeOf(writer).Error!void {
             _ = fmt;
             _ = options;
-            try writer.print("{d}.{d}.{d}.{d}", .{ self.address[0], self.address[1], self.address[2], self.address[3] });
+            try writer.print("{d}.{d}.{d}.{d}", .{
+                self.address[0],
+                self.address[1],
+                self.address[2],
+                self.address[3],
+            });
         }
 
         pub fn decompress(self: A, _: mem.Allocator, _: []const u8) !A {
             return self;
         }
-
     };
 
     pub const WKS = struct {
@@ -1714,13 +1867,23 @@ pub const ResourceData = union(enum) {
             self.allocator.free(self.bit_map);
         }
 
-        pub fn format(self: *const WKS, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+        pub fn format(
+            self: *const WKS,
+            comptime fmt: []const u8,
+            options: std.fmt.FormatOptions,
+            writer: anytype,
+        ) !void {
             _ = fmt;
             _ = options;
 
-            try writer.print("Address: {d}.{d}.{d}.{d}, Protocol: {d}, Bitmap: {s}",
-                             .{ self.address[0], self.address[1], self.address[2], self.address[3],
-                                self.protocol, std.fmt.fmtSliceEscapeUpper(self.bit_map) });
+            try writer.print("Address: {d}.{d}.{d}.{d}, Protocol: {d}, Bitmap: {s}", .{
+                self.address[0],
+                self.address[1],
+                self.address[2],
+                self.address[3],
+                self.protocol,
+                std.fmt.fmtSliceEscapeUpper(self.bit_map),
+            });
         }
 
         pub fn decompress(self: WKS, allocator: mem.Allocator, _: []const u8) !WKS {
@@ -1731,7 +1894,6 @@ pub const ResourceData = union(enum) {
                 .bit_map = try allocator.dupe(u8, self.bit_map),
             };
         }
-
     };
 
     pub const Unknown = struct {
@@ -1759,11 +1921,16 @@ pub const ResourceData = union(enum) {
             self.allocator.free(self.data);
         }
 
-        pub fn format(self: *const Unknown, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+        pub fn format(
+            self: *const Unknown,
+            comptime fmt: []const u8,
+            options: std.fmt.FormatOptions,
+            writer: anytype,
+        ) !void {
             _ = fmt;
             _ = options;
 
-            try writer.print("{s}", .{ std.fmt.fmtSliceEscapeUpper(self.data) });
+            try writer.print("{s}", .{std.fmt.fmtSliceEscapeUpper(self.data)});
         }
 
         pub fn decompress(self: Unknown, allocator: mem.Allocator, _: []const u8) !Unknown {
@@ -1909,7 +2076,12 @@ pub const ResourceData = union(enum) {
             self.target.deinit();
         }
 
-        pub fn format(self: *const SRV, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+        pub fn format(
+            self: *const SRV,
+            comptime fmt: []const u8,
+            options: std.fmt.FormatOptions,
+            writer: anytype,
+        ) !void {
             _ = fmt;
             _ = options;
 
@@ -1920,7 +2092,7 @@ pub const ResourceData = union(enum) {
                 \\        Port: {d}
                 \\        Target: {}
                 \\      }}
-                , .{ self.priority, self.weight, self.port, self.target });
+            , .{ self.priority, self.weight, self.port, self.target });
         }
 
         pub fn decompress(self: SRV, allocator: mem.Allocator, packet: []const u8) !SRV {
@@ -1931,7 +2103,6 @@ pub const ResourceData = union(enum) {
                 .target = try self.target.decompress(allocator, packet),
             };
         }
-
     };
 
     pub const SSHFP = struct {
@@ -1985,11 +2156,20 @@ pub const ResourceData = union(enum) {
             self.allocator.free(self.fingerprint);
         }
 
-        pub fn format(self: *const SSHFP, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+        pub fn format(
+            self: *const SSHFP,
+            comptime fmt: []const u8,
+            options: std.fmt.FormatOptions,
+            writer: anytype,
+        ) !void {
             _ = fmt;
             _ = options;
 
-            try writer.print("Algorithm: {s}, Fingerprint Type: {s}, Fingerprint: {s}", .{ @tagName(self.algorithm), @tagName(self.fingerprint_type), self.fingerprint });
+            try writer.print("Algorithm: {s}, Fingerprint Type: {s}, Fingerprint: {s}", .{
+                @tagName(self.algorithm),
+                @tagName(self.fingerprint_type),
+                self.fingerprint,
+            });
         }
 
         pub fn decompress(self: SSHFP, allocator: mem.Allocator, _: []const u8) !SSHFP {
@@ -2000,7 +2180,6 @@ pub const ResourceData = union(enum) {
                 .fingerprint = try allocator.dupe(u8, self.fingerprint),
             };
         }
-
     };
 
     pub const URI = struct {
@@ -2046,11 +2225,20 @@ pub const ResourceData = union(enum) {
             self.allocator.free(self.target);
         }
 
-        pub fn format(self: *const URI, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+        pub fn format(
+            self: *const URI,
+            comptime fmt: []const u8,
+            options: std.fmt.FormatOptions,
+            writer: anytype,
+        ) !void {
             _ = fmt;
             _ = options;
 
-            try writer.print("Priority: {d}, Weight: {d}, Target: {s}", .{ self.priority, self.weight, self.target });
+            try writer.print("Priority: {d}, Weight: {d}, Target: {s}", .{
+                self.priority,
+                self.weight,
+                self.target,
+            });
         }
 
         pub fn decompress(self: URI, allocator: mem.Allocator, _: []const u8) !URI {
@@ -2114,7 +2302,7 @@ pub const ResourceData = union(enum) {
         /// relative to the [WGS 84] ellipsoid.
         altitude: u32,
 
-        pub const PrecisionSize = packed struct (u8) {
+        pub const PrecisionSize = packed struct(u8) {
             /// The power of ten by which to multiply the base.
             power: u4,
             base: u4,
@@ -2254,15 +2442,14 @@ fn listDeinit(list: anytype) void {
     list.deinit();
 }
 
-
 fn formatTagName(value: anytype, writer: anytype) !void {
     inline for (comptime std.enums.values(@TypeOf(value))) |val| {
         if (value == val) {
-            try writer.print("{s}", .{ @tagName(value) });
+            try writer.print("{s}", .{@tagName(value)});
             return;
         }
     }
-    try writer.print("{d}", .{ @enumToInt(value) });
+    try writer.print("{d}", .{@enumToInt(value)});
 }
 
 test "ref all decls" {

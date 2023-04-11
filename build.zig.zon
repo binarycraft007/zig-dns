@@ -1,0 +1,10 @@
+.{
+    .name = "zig-dns",
+    .version = "0.0.1",
+    .dependencies = .{
+        .network = .{
+            .url = "https://github.com/MasterQ32/zig-network/archive/29de7bcd5f710de9e502ffcd639388860f243505.tar.gz",
+            .hash = "1220b33350f3a864bdfd02f61297686718b008fd6ca3abca375bfe1034f63ee16623",
+        },
+    },
+}
